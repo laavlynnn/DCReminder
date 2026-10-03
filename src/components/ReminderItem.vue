@@ -47,6 +47,7 @@ function subtext() {
 
 <style scoped>
 .item { display: flex; align-items: center; gap: 10px; padding: 12px; border-bottom: 1px solid var(--line); }
+.item input[type='checkbox'] { accent-color: var(--accent); width: 18px; height: 18px; }
 .info { flex: 1; display: flex; flex-direction: column; }
 .info small { color: var(--muted); }
 .item button { background: none; border: none; font-size: 18px; }

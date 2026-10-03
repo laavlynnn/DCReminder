@@ -3,7 +3,9 @@ import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import ReminderForm from './components/ReminderForm.vue'
+import TemplatePicker from './components/TemplatePicker.vue'
 import BottomNav from './components/BottomNav.vue'
+import { themes } from './themes.js'
 
 const router = useRouter()
 
@@ -16,7 +18,7 @@ function loadData(key, defaultValue) {
 }
 
 const reminders = ref(loadData('reminders', []))
-const lists = ref(['Personal', 'School', 'Shopping'])
+const lists = ref(loadData('lists', ['Personal', 'School', 'Shopping']))
 const settings = ref(loadData('settings', {
   darkMode: false,
   notifications: true,
@@ -24,7 +26,9 @@ const settings = ref(loadData('settings', {
   showCompleted: true,
   showFlagged: true
 }))
+const currentTheme = ref(loadData('theme', 'classic'))
 const showForm = ref(false)
+const showTemplates = ref(false)
 let nextId = 1
 if (reminders.value.length > 0) {
   nextId = Math.max(...reminders.value.map(r => r.id)) + 1
@@ -35,12 +39,56 @@ watch(reminders, () => {
   localStorage.setItem('reminders', JSON.stringify(reminders.value))
 }, { deep: true })
 
+watch(lists, () => {
+  localStorage.setItem('lists', JSON.stringify(lists.value))
+}, { deep: true })
+
 watch(settings, () => {
   localStorage.setItem('settings', JSON.stringify(settings.value))
 }, { deep: true })
 
+watch(currentTheme, () => {
+  localStorage.setItem('theme', JSON.stringify(currentTheme.value))
+})
+
 function localDate() {
   return new Date().toLocaleDateString('en-CA')
+}
+
+// finds the chosen theme (colors and icons)
+function getTheme() {
+  return themes.find(t => t.id === currentTheme.value) || themes[0]
+}
+
+// gives the colors for the chosen theme (dark mode makes it dark)
+function getThemeStyle() {
+  const theme = getTheme()
+
+  if (settings.value.darkMode || theme.dark) {
+    return {
+      '--bg': '#000000',
+      '--card': '#1c1c1e',
+      '--text': '#f5f5f7',
+      '--line': '#38383a',
+      '--muted': '#98989f',
+      '--accent': theme.accent,
+      'color-scheme': 'dark'
+    }
+  }
+
+  return {
+    '--bg': theme.bg,
+    '--card': theme.card,
+    '--text': theme.text,
+    '--line': theme.line,
+    '--muted': theme.muted,
+    '--accent': theme.accent
+  }
+}
+
+function pickTheme(id) {
+  currentTheme.value = id
+  showTemplates.value = false
 }
 
 function goTo(view) {
@@ -55,6 +103,46 @@ function addReminder(data) {
   reminders.value.push({ id: nextId, ...data, done: false, doneDate: '' })
   nextId++
   showForm.value = false
+}
+
+// list names that cannot be used again
+const reservedNames = ['Today', 'Scheduled', 'All', 'Flagged', 'Urgent', 'Completed']
+
+function isNameTaken(name) {
+  const allNames = [...reservedNames, ...lists.value].map(n => n.toLowerCase())
+  return allNames.includes(name.toLowerCase())
+}
+
+function addList(name) {
+  if (isNameTaken(name)) {
+    alert('That list name is already used.')
+    return
+  }
+  lists.value.push(name)
+}
+
+function renameList(oldName, newName) {
+  if (oldName === newName) return
+  if (isNameTaken(newName)) {
+    alert('That list name is already used.')
+    return
+  }
+  const index = lists.value.indexOf(oldName)
+  lists.value[index] = newName
+  for (const r of reminders.value) {
+    if (r.list === oldName) {
+      r.list = newName
+    }
+  }
+}
+
+function deleteList(name) {
+  if (lists.value.length === 1) {
+    alert('You need at least one list.')
+    return
+  }
+  lists.value = lists.value.filter(l => l !== name)
+  reminders.value = reminders.value.filter(r => r.list !== name)
 }
 
 function toggleDone(id) {
@@ -115,7 +203,8 @@ function getViewProps(route) {
       counts: getCounts(),
       lists: lists.value,
       settings: settings.value,
-      reminders: reminders.value
+      reminders: reminders.value,
+      icons: getTheme().icons.tiles
     }
   }
   if (route.name === 'list') {
@@ -136,7 +225,7 @@ function getViewProps(route) {
 </script>
 
 <template>
-  <div class="wrapper" :class="{ dark: settings.darkMode }">
+  <div class="wrapper" :style="getThemeStyle()">
     <div class="app">
       <RouterView v-slot="{ Component, route }">
         <component
@@ -144,6 +233,10 @@ function getViewProps(route) {
           v-bind="getViewProps(route)"
           @select="goTo"
           @add="showForm = true"
+          @open-templates="showTemplates = true"
+          @add-list="addList"
+          @rename-list="renameList"
+          @delete-list="deleteList"
           @toggle="toggleDone"
           @flag="toggleFlag"
           @remove="deleteReminder"
@@ -159,28 +252,31 @@ function getViewProps(route) {
       @cancel="showForm = false"
     />
 
+    <TemplatePicker
+      v-if="showTemplates"
+      :current="currentTheme"
+      @theme-picked="pickTheme"
+      @cancel="showTemplates = false"
+    />
+
     <button v-if="$route.name !== 'settings'" class="add-button" @click="showForm = true">+</button>
 
-    <BottomNav />
+    <BottomNav :icons="getTheme().icons.nav" />
   </div>
 </template>
 
 <style>
 body { margin: 0; font-family: Arial, sans-serif; }
 .wrapper {
-  --bg: #f2f2f7; --card: #ffffff; --text: #111111; --line: #eeeeee; --muted: #8a8a8e;
+  --bg: #f2f2f7; --card: #ffffff; --text: #111111; --line: #eeeeee; --muted: #8a8a8e; --accent: #0a84ff;
   background: var(--bg); color: var(--text); min-height: 100vh;
-}
-.wrapper.dark {
-  --bg: #000000; --card: #1c1c1e; --text: #f5f5f7; --line: #38383a; --muted: #98989f;
-  color-scheme: dark;
 }
 .app { max-width: 600px; margin: 0 auto; padding: 16px 16px 140px; }
 .add-button {
   position: fixed; bottom: 80px;
   right: max(20px, calc(50% - 280px));
   width: 56px; height: 56px; border-radius: 50%;
-  border: none; background: #0a84ff; color: white; font-size: 30px;
+  border: none; background: var(--accent); color: white; font-size: 30px;
 }
 button { cursor: pointer; color: inherit; }
 </style>

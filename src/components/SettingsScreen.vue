@@ -72,6 +72,6 @@ h3 { margin: 20px 4px 8px; font-size: 14px; color: var(--muted); }
   width: 100%; box-sizing: border-box; background: none; border: none;
   border-bottom: 1px solid var(--line); padding: 14px; font-size: 16px;
 }
-.row button { background: none; border: none; color: #0a84ff; font-weight: bold; font-size: 16px; }
+.row button { background: none; border: none; color: var(--accent); font-weight: bold; font-size: 16px; }
 .about { padding: 0 14px 14px; color: var(--muted); }
 </style>

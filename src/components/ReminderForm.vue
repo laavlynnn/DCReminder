@@ -98,7 +98,7 @@ function submitForm() {
 .header h2 { margin: 0; font-size: 18px; }
 .header button { background: none; border: none; font-size: 16px; padding: 4px; }
 .cancel { color: var(--muted); }
-.add { color: #0a84ff; font-weight: bold; }
+.add { color: var(--accent); font-weight: bold; }
 
 .group {
   background: var(--card); border-radius: 12px;
@@ -115,12 +115,16 @@ function submitForm() {
 .field:last-child { border-bottom: none; }
 .field input[type='date'],
 .field input[type='time'],
+.field select {
+  background: transparent; color: var(--text);
+  border: none; font-size: 16px; text-align: right;
+}
 .field select option {
   background: var(--card);
   color: var(--text);
 }
 .field input[type='checkbox'] {
-  width: 22px; height: 22px; accent-color: #0a84ff;
+  width: 22px; height: 22px; accent-color: var(--accent);
 }
 input:focus, select:focus { outline: none; }
 </style>

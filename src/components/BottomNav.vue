@@ -1,17 +1,21 @@
 <script setup>
+defineProps({
+  icons: Object
+})
+
 const tabs = [
-  { label: 'Home', to: '/', icon: '🏠' },
-  { label: 'Today', to: '/list/Today', icon: '📅' },
-  { label: 'Schedule', to: '/list/Scheduled', icon: '🗓' },
-  { label: 'Done', to: '/list/Completed', icon: '✓' },
-  { label: 'Settings', to: '/settings', icon: '⚙' }
+  { label: 'Home', to: '/', key: 'home' },
+  { label: 'Today', to: '/list/Today', key: 'today' },
+  { label: 'Schedule', to: '/list/Scheduled', key: 'schedule' },
+  { label: 'Done', to: '/list/Completed', key: 'done' },
+  { label: 'Settings', to: '/settings', key: 'settings' }
 ]
 </script>
 
 <template>
   <nav class="nav">
     <RouterLink v-for="tab in tabs" :key="tab.to" :to="tab.to">
-      <span>{{ tab.icon }}</span>
+      <span>{{ icons[tab.key] }}</span>
       <small>{{ tab.label }}</small>
     </RouterLink>
   </nav>
@@ -30,5 +34,5 @@ const tabs = [
   color: var(--muted); font-size: 20px; text-decoration: none;
 }
 .nav small { font-size: 12px; }
-.nav a.router-link-exact-active { color: #0a84ff; }
+.nav a.router-link-exact-active { color: var(--accent); }
 </style>
