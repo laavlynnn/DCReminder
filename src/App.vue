@@ -391,9 +391,33 @@ function getViewProps(route) {
 </template>
 
 <style>
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+}
+
 body {
   margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
   font-family: Arial, sans-serif;
+  background: var(--bg, #f2f2f7);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+  color: inherit;
 }
 
 .wrapper {
@@ -403,33 +427,75 @@ body {
   --line: #eeeeee;
   --muted: #8a8a8e;
   --accent: #0a84ff;
+
+  min-height: 100vh;
   background: var(--bg);
   color: var(--text);
-  min-height: 100vh;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .app {
+  width: 100%;
   max-width: 600px;
+  min-height: 100vh;
   margin: 0 auto;
-  padding: 16px 16px 140px;
+  padding: 20px 16px 140px;
 }
 
 .add-button {
   position: fixed;
-  bottom: 80px;
   right: max(20px, calc(50% - 280px));
+  bottom: 82px;
   width: 56px;
   height: 56px;
-  border-radius: 50%;
   border: none;
+  border-radius: 50%;
   background: var(--accent);
   color: white;
   font-size: 30px;
-  z-index: 5;
+  line-height: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+  z-index: 25;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-button {
-  cursor: pointer;
-  color: inherit;
+.add-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 7px 18px rgba(0, 0, 0, 0.2);
+}
+
+/* Desktop and laptop layout */
+@media (min-width: 900px) {
+  .app {
+    width: calc(100% - 260px);
+    max-width: 1500px;
+    min-height: 100vh;
+    margin-left: 260px;
+    margin-right: 0;
+    padding: 40px clamp(28px, 4vw, 64px) 80px;
+  }
+
+  .add-button {
+    right: 36px;
+    bottom: 32px;
+    width: 60px;
+    height: 60px;
+  }
+}
+
+/* Small laptop and tablet layout */
+@media (min-width: 600px) and (max-width: 899px) {
+  .app {
+    max-width: 820px;
+    padding: 28px 28px 120px;
+  }
+
+  .add-button {
+    right: 28px;
+    bottom: 88px;
+  }
 }
 </style>
