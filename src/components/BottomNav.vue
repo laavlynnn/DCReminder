@@ -1,21 +1,28 @@
 <script setup>
 defineProps({
-  icons: Object
+  icons: {
+    type: Object,
+    default: () => ({})
+  }
 })
 
 const tabs = [
-  { label: 'Home', to: '/', key: 'home' },
-  { label: 'Today', to: '/list/Today', key: 'today' },
-  { label: 'Schedule', to: '/list/Scheduled', key: 'schedule' },
-  { label: 'Done', to: '/list/Completed', key: 'done' },
-  { label: 'Settings', to: '/settings', key: 'settings' }
+  { label: 'Home', to: '/', icon: '⌂' },
+  { label: 'Reminders', to: '/reminders', icon: '☷' },
+  { label: 'Lists', to: '/lists', icon: '▤' },
+  { label: 'About', to: '/about', icon: 'ⓘ' },
+  { label: 'Settings', to: '/settings', icon: '⚙' }
 ]
 </script>
 
 <template>
   <nav class="nav">
-    <RouterLink v-for="tab in tabs" :key="tab.to" :to="tab.to">
-      <span>{{ icons[tab.key] }}</span>
+    <RouterLink
+      v-for="tab in tabs"
+      :key="tab.to"
+      :to="tab.to"
+    >
+      <span class="nav-icon">{{ tab.icon }}</span>
       <small>{{ tab.label }}</small>
     </RouterLink>
   </nav>
@@ -23,16 +30,44 @@ const tabs = [
 
 <style scoped>
 .nav {
-  position: fixed; left: 50%; transform: translateX(-50%);
-  bottom: 0; width: 100%; max-width: 600px;
-  display: flex; justify-content: space-around;
-  background: var(--card); border-top: 1px solid var(--line);
-  padding: 6px 0;
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 0;
+  width: 100%;
+  max-width: 600px;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  background: var(--card);
+  border-top: 1px solid var(--line);
+  padding: 10px 4px calc(10px + env(safe-area-inset-bottom));
+  z-index: 20;
 }
+
 .nav a {
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
-  color: var(--muted); font-size: 20px; text-decoration: none;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  text-decoration: none;
 }
-.nav small { font-size: 12px; }
-.nav a.router-link-exact-active { color: var(--accent); }
+
+.nav-icon {
+  font-size: 21px;
+  line-height: 1.2;
+}
+
+.nav small {
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.nav a.router-link-exact-active {
+  color: var(--accent);
+}
 </style>

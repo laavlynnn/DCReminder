@@ -10,11 +10,12 @@ import { themes } from './themes.js'
 const router = useRouter()
 
 function loadData(key, defaultValue) {
-  const saved = localStorage.getItem(key)
-  if (saved) {
-    return JSON.parse(saved)
+  try {
+    const saved = localStorage.getItem(key)
+    return saved !== null ? JSON.parse(saved) : defaultValue
+  } catch {
+    return defaultValue
   }
-  return defaultValue
 }
 
 const reminders = ref(loadData('reminders', []))
@@ -29,38 +30,41 @@ const settings = ref(loadData('settings', {
 const currentTheme = ref(loadData('theme', 'classic'))
 const showForm = ref(false)
 const showTemplates = ref(false)
-let nextId = 1
-if (reminders.value.length > 0) {
-  nextId = Math.max(...reminders.value.map(r => r.id)) + 1
-}
+const editingReminder = ref(null)
 
-// save to localStorage every time the data changes
-watch(reminders, () => {
-  localStorage.setItem('reminders', JSON.stringify(reminders.value))
+let nextId = reminders.value.length
+  ? Math.max(...reminders.value.map(r => Number(r.id) || 0)) + 1
+  : 1
+
+watch(reminders, value => {
+  localStorage.setItem('reminders', JSON.stringify(value))
 }, { deep: true })
 
-watch(lists, () => {
-  localStorage.setItem('lists', JSON.stringify(lists.value))
+watch(lists, value => {
+  localStorage.setItem('lists', JSON.stringify(value))
 }, { deep: true })
 
-watch(settings, () => {
-  localStorage.setItem('settings', JSON.stringify(settings.value))
+watch(settings, value => {
+  localStorage.setItem('settings', JSON.stringify(value))
 }, { deep: true })
 
-watch(currentTheme, () => {
-  localStorage.setItem('theme', JSON.stringify(currentTheme.value))
+watch(currentTheme, value => {
+  localStorage.setItem('theme', JSON.stringify(value))
 })
 
 function localDate() {
-  return new Date().toLocaleDateString('en-CA')
+  const date = new Date()
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
 }
 
-// finds the chosen theme (colors and icons)
 function getTheme() {
   return themes.find(t => t.id === currentTheme.value) || themes[0]
 }
 
-// gives the colors for the chosen theme (dark mode makes it dark)
 function getThemeStyle() {
   const theme = getTheme()
 
@@ -82,7 +86,8 @@ function getThemeStyle() {
     '--text': theme.text,
     '--line': theme.line,
     '--muted': theme.muted,
-    '--accent': theme.accent
+    '--accent': theme.accent,
+    'color-scheme': 'light'
   }
 }
 
@@ -92,111 +97,206 @@ function pickTheme(id) {
 }
 
 function goTo(view) {
-  if (view === 'settings') {
-    router.push({ name: 'settings' })
-  } else {
-    router.push({ name: 'list', params: { name: view } })
+  const fixedRoutes = {
+    home: '/',
+    reminders: '/reminders',
+    lists: '/lists',
+    about: '/about',
+    settings: '/settings'
   }
+
+  if (fixedRoutes[view]) {
+    router.push(fixedRoutes[view])
+    return
+  }
+
+  router.push({
+    name: 'list',
+    params: { name: view }
+  })
 }
 
-function addReminder(data) {
-  reminders.value.push({ id: nextId, ...data, done: false, doneDate: '' })
-  nextId++
+function openAddForm() {
+  editingReminder.value = null
+  showForm.value = true
+}
+
+function openEditForm(id) {
+  const reminder = reminders.value.find(item => item.id === id)
+
+  if (!reminder || reminder.done) return
+
+  editingReminder.value = { ...reminder }
+  showForm.value = true
+}
+
+function closeReminderForm() {
   showForm.value = false
+  editingReminder.value = null
 }
 
-// list names that cannot be used again
-const reservedNames = ['Today', 'Scheduled', 'All', 'Flagged', 'Urgent', 'Completed']
+function saveReminder(data) {
+  if (editingReminder.value) {
+    const existing = reminders.value.find(
+      item => item.id === editingReminder.value.id
+    )
+
+    if (existing) {
+      existing.title = data.title
+      existing.due = data.due
+      existing.time = data.time
+      existing.list = data.list
+      existing.flagged = data.flagged
+      existing.urgent = data.urgent
+    }
+  } else {
+    reminders.value.push({
+      id: nextId++,
+      ...data,
+      done: false,
+      doneDate: ''
+    })
+  }
+
+  closeReminderForm()
+}
+
+const reservedNames = [
+  'Today', 'Scheduled', 'All', 'Flagged', 'Urgent', 'Completed'
+]
 
 function isNameTaken(name) {
-  const allNames = [...reservedNames, ...lists.value].map(n => n.toLowerCase())
-  return allNames.includes(name.toLowerCase())
+  const normalized = String(name).trim().toLowerCase()
+
+  return [...reservedNames, ...lists.value]
+    .some(existing => existing.toLowerCase() === normalized)
 }
 
 function addList(name) {
-  if (isNameTaken(name)) {
+  const cleaned = String(name).trim()
+  if (!cleaned) return
+
+  if (isNameTaken(cleaned)) {
     alert('That list name is already used.')
     return
   }
-  lists.value.push(name)
+
+  lists.value.push(cleaned)
 }
 
 function renameList(oldName, newName) {
-  if (oldName === newName) return
-  if (isNameTaken(newName)) {
+  const cleaned = String(newName).trim()
+  if (!cleaned || oldName === cleaned) return
+
+  if (isNameTaken(cleaned)) {
     alert('That list name is already used.')
     return
   }
+
   const index = lists.value.indexOf(oldName)
-  lists.value[index] = newName
-  for (const r of reminders.value) {
-    if (r.list === oldName) {
-      r.list = newName
+  if (index === -1) return
+
+  lists.value[index] = cleaned
+
+  reminders.value.forEach(reminder => {
+    if (reminder.list === oldName) {
+      reminder.list = cleaned
     }
-  }
+  })
 }
 
 function deleteList(name) {
-  if (lists.value.length === 1) {
+  if (lists.value.length <= 1) {
     alert('You need at least one list.')
     return
   }
-  lists.value = lists.value.filter(l => l !== name)
-  reminders.value = reminders.value.filter(r => r.list !== name)
+
+  lists.value = lists.value.filter(list => list !== name)
+  reminders.value = reminders.value.filter(
+    reminder => reminder.list !== name
+  )
 }
 
 function toggleDone(id) {
-  const item = reminders.value.find(r => r.id === id)
+  const item = reminders.value.find(reminder => reminder.id === id)
+  if (!item) return
+
   item.done = !item.done
   item.doneDate = item.done ? localDate() : ''
 }
 
 function toggleFlag(id) {
-  const item = reminders.value.find(r => r.id === id)
-  item.flagged = !item.flagged
+  const item = reminders.value.find(reminder => reminder.id === id)
+
+  if (item) {
+    item.flagged = !item.flagged
+  }
 }
 
 function deleteReminder(id) {
-  reminders.value = reminders.value.filter(r => r.id !== id)
+  reminders.value = reminders.value.filter(
+    reminder => reminder.id !== id
+  )
 }
 
 function toggleSetting(key) {
-  settings.value[key] = !settings.value[key]
+  if (Object.prototype.hasOwnProperty.call(settings.value, key)) {
+    settings.value[key] = !settings.value[key]
+  }
 }
 
 function getVisible(view) {
   const today = localDate()
-  if (view === 'Completed') return reminders.value.filter(r => r.done)
 
-  const active = reminders.value.filter(r => !r.done)
-  if (view === 'Today') return active.filter(r => r.due === today)
+  if (view === 'Completed') {
+    return reminders.value.filter(reminder => reminder.done)
+  }
+
+  const active = reminders.value.filter(reminder => !reminder.done)
+
+  if (view === 'Today') {
+    return active.filter(reminder => reminder.due === today)
+  }
+
   if (view === 'Scheduled') {
     return active
-      .filter(r => r.due > today)
-      .sort((a, b) => (a.due + a.time).localeCompare(b.due + b.time))
+      .filter(reminder => reminder.due && reminder.due > today)
+      .sort((a, b) =>
+        `${a.due || ''}${a.time || ''}`.localeCompare(
+          `${b.due || ''}${b.time || ''}`
+        )
+      )
   }
+
   if (view === 'All') return active
-  if (view === 'Flagged') return active.filter(r => r.flagged)
-  if (view === 'Urgent') return active.filter(r => r.urgent)
-  return active.filter(r => r.list === view)
+  if (view === 'Flagged') return active.filter(reminder => reminder.flagged)
+  if (view === 'Urgent') return active.filter(reminder => reminder.urgent)
+
+  return active.filter(reminder => reminder.list === view)
 }
 
 function getCounts() {
-  const names = ['Today', 'Scheduled', 'All', 'Flagged', 'Urgent', 'Completed', ...lists.value]
+  const names = [
+    'Today', 'Scheduled', 'All', 'Flagged',
+    'Urgent', 'Completed', ...lists.value
+  ]
+
   const counts = {}
+
   for (const name of names) {
     counts[name] = getVisible(name).length
   }
+
   return counts
 }
 
 function getMode(view) {
   if (view === 'Scheduled') return 'scheduled'
   if (view === 'Completed') return 'completed'
+
   return 'normal'
 }
 
-// decides which props each page (route) receives
 function getViewProps(route) {
   if (route.name === 'home') {
     return {
@@ -207,6 +307,7 @@ function getViewProps(route) {
       icons: getTheme().icons.tiles
     }
   }
+
   if (route.name === 'list') {
     return {
       title: route.params.name,
@@ -214,12 +315,27 @@ function getViewProps(route) {
       reminders: getVisible(route.params.name)
     }
   }
+
+  if (route.name === 'reminders') {
+    return {
+      reminders: getVisible('All')
+    }
+  }
+
+  if (route.name === 'lists') {
+    return {
+      lists: lists.value,
+      counts: getCounts()
+    }
+  }
+
   if (route.name === 'settings') {
     return {
       settings: settings.value,
       lists: lists.value
     }
   }
+
   return {}
 }
 </script>
@@ -232,7 +348,7 @@ function getViewProps(route) {
           :is="Component"
           v-bind="getViewProps(route)"
           @select="goTo"
-          @add="showForm = true"
+          @add="openAddForm"
           @open-templates="showTemplates = true"
           @add-list="addList"
           @rename-list="renameList"
@@ -240,6 +356,7 @@ function getViewProps(route) {
           @toggle="toggleDone"
           @flag="toggleFlag"
           @remove="deleteReminder"
+          @edit="openEditForm"
           @toggle-setting="toggleSetting"
         />
       </RouterView>
@@ -248,8 +365,9 @@ function getViewProps(route) {
     <ReminderForm
       v-if="showForm"
       :lists="lists"
-      @reminder-submitted="addReminder"
-      @cancel="showForm = false"
+      :reminder="editingReminder"
+      @reminder-submitted="saveReminder"
+      @cancel="closeReminderForm"
     />
 
     <TemplatePicker
@@ -259,24 +377,59 @@ function getViewProps(route) {
       @cancel="showTemplates = false"
     />
 
-    <button v-if="$route.name !== 'settings'" class="add-button" @click="showForm = true">+</button>
+    <button
+      v-if="!['settings', 'about', 'lists'].includes($route.name)"
+      class="add-button"
+      aria-label="Add reminder"
+      @click="openAddForm"
+    >
+      +
+    </button>
 
     <BottomNav :icons="getTheme().icons.nav" />
   </div>
 </template>
 
 <style>
-body { margin: 0; font-family: Arial, sans-serif; }
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+}
+
 .wrapper {
-  --bg: #f2f2f7; --card: #ffffff; --text: #111111; --line: #eeeeee; --muted: #8a8a8e; --accent: #0a84ff;
-  background: var(--bg); color: var(--text); min-height: 100vh;
+  --bg: #f2f2f7;
+  --card: #ffffff;
+  --text: #111111;
+  --line: #eeeeee;
+  --muted: #8a8a8e;
+  --accent: #0a84ff;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
 }
-.app { max-width: 600px; margin: 0 auto; padding: 16px 16px 140px; }
+
+.app {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 16px 16px 140px;
+}
+
 .add-button {
-  position: fixed; bottom: 80px;
+  position: fixed;
+  bottom: 80px;
   right: max(20px, calc(50% - 280px));
-  width: 56px; height: 56px; border-radius: 50%;
-  border: none; background: var(--accent); color: white; font-size: 30px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  font-size: 30px;
+  z-index: 5;
 }
-button { cursor: pointer; color: inherit; }
+
+button {
+  cursor: pointer;
+  color: inherit;
+}
 </style>
