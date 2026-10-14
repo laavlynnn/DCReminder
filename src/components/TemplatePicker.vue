@@ -16,7 +16,7 @@ const selected = ref(props.current)
     <div class="sheet">
       <div class="header">
         <button class="cancel" @click="emit('cancel')">Cancel</button>
-        <h2>Templates</h2>
+        <h2>Themes</h2>
         <button class="done" @click="emit('theme-picked', selected)">Done</button>
       </div>
 

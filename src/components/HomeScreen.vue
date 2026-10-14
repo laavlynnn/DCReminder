@@ -80,7 +80,7 @@ function deleteList(list) {
         <div v-if="showMenu" class="backdrop" @click="showMenu = false"></div>
         <div v-if="showMenu" class="menu">
           <button @click="startEdit">✎ Edit</button>
-          <button @click="openTemplates">🎨 Templates</button>
+          <button @click="openTemplates">🎨 Themes</button>
         </div>
       </div>
     </div>
